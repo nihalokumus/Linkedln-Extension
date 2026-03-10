@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn JSON Exporter",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Export LinkedIn JSON"
+  },
+  "permissions": [],
+  "host_permissions": ["https://*.linkedin.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
