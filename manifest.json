@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn JSON Exporter",
+  "name": "LinkedIn Exporter",
   "version": "0.1.0",
   "action": {
     "default_popup": "popup.html",
