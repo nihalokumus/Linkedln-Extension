@@ -23,6 +23,6 @@ btn.addEventListener("click", async () => {
       return;
     }
 
-    statusEl.textContent = "İndirme başladı ";
+    statusEl.textContent = "İndirme tamamlandı ";
   });
 });
