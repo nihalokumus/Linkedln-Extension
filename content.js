@@ -7,7 +7,7 @@ async function autoScrollToLoad() {
     const total = document.body.scrollHeight;
     for (let i = 0; i < 12; i++) {
         window.scrollTo(0, (total * (i + 1)) / 12);
-        await sleep(400); 
+        await sleep(400);
     }
     window.scrollTo(0, 0);
     await sleep(500);
@@ -25,7 +25,7 @@ function getWorkExperience() {
 
     const mainUl = section.querySelector('ul');
     if (!mainUl) return [];
-    
+
     const items = Array.from(mainUl.querySelectorAll(':scope > li.artdeco-list__item, :scope > li.pvs-list__paged-list-item'));
     const experiences = [];
 
@@ -36,14 +36,14 @@ function getWorkExperience() {
             .filter(t => t);
 
         if (nestedUl) {
-            const companyName = spans[0] || "Bilinmiyor"; 
+            const companyName = spans[0] || "Bilinmiyor";
             const subItems = Array.from(nestedUl.querySelectorAll(':scope > li'));
-            
+
             subItems.forEach(subItem => {
                 const subSpans = Array.from(subItem.querySelectorAll('span[aria-hidden="true"]'))
                     .map(el => cleanText(el.textContent))
                     .filter(t => t);
-                
+
                 experiences.push({
                     company: companyName,
                     position: subSpans[0] || "",
@@ -87,11 +87,11 @@ function getEducation() {
 function getSkills() {
     const section = getSectionByHeader("Skills") || getSectionByHeader("Yetenekler");
     if (!section) return [];
-    
+
     const skills = Array.from(section.querySelectorAll('span[aria-hidden="true"]'))
         .map(el => cleanText(el.textContent))
-        .filter(t => t && t.length < 50 && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler") && t !== "Yetenekler" && t !== "Skills"); 
-    
+        .filter(t => t && t.length < 50 && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler") && t !== "Yetenekler" && t !== "Skills");
+
     return [...new Set(skills)].map(name => ({ name }));
 }
 
@@ -108,7 +108,7 @@ function getLanguages() {
 
         return {
             name: lines[0] || "",
-            proficiency: lines[1] || "" 
+            proficiency: lines[1] || ""
         };
     }).filter(l => l.name);
 }
@@ -145,7 +145,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             a.href = url;
             a.download = `LinkedIn_${name.replace(/\s+/g, '_')}.json`;
             a.click();
-            URL.revokeObjectURL(url); 
+            URL.revokeObjectURL(url);
 
             sendResponse({ ok: true, data: profileData });
         } catch (error) {
@@ -153,6 +153,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             sendResponse({ ok: false, error: error.message });
         }
     })();
-    
-    return true; 
+
+    return true;
 });

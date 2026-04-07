@@ -1,17 +1,81 @@
+
 <!doctype html>
-<html>
+<html lang="tr">
   <head>
     <meta charset="utf-8" />
     <title>Export</title>
     <style>
-      body { font-family: Arial, sans-serif; padding: 12px; width: 220px; }
-      button { width: 100%; padding: 10px; cursor: pointer; }
-      #status { margin-top: 10px; font-size: 12px; }
+      body { 
+        font-family: Arial, sans-serif; 
+        padding: 15px; 
+        width: 250px; 
+        background-color: #f8f9fa;
+      }
+      h3 { margin-top: 0; text-align: center; color: #333; }
+      input {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button { 
+        width: 100%; 
+        padding: 10px; 
+        cursor: pointer; 
+        background-color: #0a66c2;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      button:hover { background-color: #004182; }
+      #saveDbBtn { background-color: #057642; }
+      #saveDbBtn:hover { background-color: #03522e; }
+      #status { margin-top: 10px; font-size: 12px; text-align: center; color: #555; }
+      
+      .link {
+        display: block;
+        text-align: center;
+        font-size: 12px;
+        color: #0a66c2;
+        cursor: pointer;
+        text-decoration: underline;
+        margin-top: 5px;
+      }
+      /* Ekranları gizlemek için kritik CSS */
+      .hidden { display: none; }
     </style>
   </head>
   <body>
-    <button id="exportBtn">JSON indir</button>
-    <div id="status"></div>
+
+    <div id="loginView">
+      <h3>Giriş Yap</h3>
+      <input type="email" id="loginEmail" placeholder="E-posta">
+      <input type="password" id="loginPass" placeholder="Şifre">
+      <button id="loginBtn">Giriş</button>
+      <span class="link" id="goToRegister">Hesabın yok mu? Kayıt Ol</span>
+    </div>
+
+    <div id="registerView" class="hidden">
+      <h3>Kayıt Ol</h3>
+      <input type="email" id="registerEmail" placeholder="E-posta">
+      <input type="password" id="registerPass" placeholder="Şifre">
+      <button id="registerBtn">Kayıt Ol</button>
+      <span class="link" id="goToLogin">Zaten üye misin? Giriş Yap</span>
+    </div>
+
+    <div id="mainView" class="hidden">
+      <h3>Panel</h3>
+      <button id="exportBtn">JSON indir</button>
+      <button id="saveDbBtn">Veritabanına Kaydet</button>
+      <span class="link" id="logoutBtn" style="color: blue;">Çıkış Yap</span>
+      
+      <div id="status"></div>
+    </div>
+
     <script src="popup.js"></script>
   </body>
 </html>
