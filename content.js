@@ -115,7 +115,7 @@ function getLanguages() {
 
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg?.type !== "EXPORT_JSON") return;
+    if (msg?.type !== "EXPORT_JSON" && msg?.type !== "GET_DATA") return;
 
     (async () => {
         try {
@@ -124,6 +124,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             const name = cleanText(document.querySelector("h1")?.textContent) || "Unknown Profile";
             const headline = cleanText(document.querySelector(".text-body-medium")?.textContent) || "";
             const locText = cleanText(document.querySelector(".text-body-small.inline")?.textContent) || "";
+            const image = document.querySelector('img.pv-top-card-profile-picture__image')?.src || document.querySelector('img[src*="profile-displayphoto-shrink"]')?.src || "";
 
             const profileData = {
                 extractedAt: new Date().toISOString(),
@@ -131,7 +132,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 basics: {
                     name,
                     summary: headline,
-                    location: locText
+                    location: locText,
+                    image
                 },
                 experience: getWorkExperience(),
                 education: getEducation(),
@@ -139,13 +141,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 languages: getLanguages() // Diller veriye eklendi
             };
 
-            const blob = new Blob([JSON.stringify(profileData, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `LinkedIn_${name.replace(/\s+/g, '_')}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            if (msg.type === "EXPORT_JSON") {
+                const blob = new Blob([JSON.stringify(profileData, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `LinkedIn_${name.replace(/\s+/g, '_')}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
 
             sendResponse({ ok: true, data: profileData });
         } catch (error) {
