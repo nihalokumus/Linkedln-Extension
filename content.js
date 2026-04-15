@@ -13,15 +13,15 @@ async function autoScrollToLoad() {
 
 function getSectionById(id) {
     const div = document.querySelector(`div#${id}`);
-    if (div) return div.closest('section') || div.parentElement;
-    return document.querySelector(`section#${id}`);
+    if (div) return div.closest('section') || div.closest('.artdeco-card') || div.parentElement;
+    return document.querySelector(`section#${id}`) || document.querySelector(`.artdeco-card#${id}`) || document.querySelector(`#${id}`);
 }
 
 function getSectionByKeyword(keywordRegex) {
-    const sections = Array.from(document.querySelectorAll("section"));
+    const sections = Array.from(document.querySelectorAll("section, .artdeco-card, div[data-view-name='profile-card']"));
     for (let sec of sections) {
-        const h2 = sec.querySelector("h2");
-        if (h2 && keywordRegex.test(h2.textContent.trim().toLowerCase())) {
+        const header = sec.querySelector("h2, .pvs-header__title-container span[aria-hidden='true'], span.pvs-header__title, h3");
+        if (header && keywordRegex.test((header.textContent || "").trim().toLowerCase())) {
             return sec;
         }
     }
@@ -37,16 +37,15 @@ function getWorkExperience() {
     const section = getSectionById("experience") || getSectionByKeyword(/exper|deneyi/i);
     if (!section) return [];
 
-    const mainUl = section.querySelector('ul');
+    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
     if (!mainUl) return [];
 
-    const items = Array.from(mainUl.querySelectorAll(':scope > li.artdeco-list__item, :scope > li.pvs-list__paged-list-item'));
+    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
     const experiences = [];
 
     items.forEach(item => {
-        // LinkedIn'de yeteneklerin (skills) pozisyon adlarına sızmasını engellemek için sadece başlık bloğunu seçiyoruz.
-        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"]');
-        const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"]');
+        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold');
+        const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"], .t-normal');
 
         const dateNodes = Array.from(item.querySelectorAll('.t-black--light span[aria-hidden="true"], .pvs-entity__caption-wrapper[aria-hidden="true"]'))
             .map(el => cleanText(el.textContent));
@@ -54,31 +53,33 @@ function getWorkExperience() {
         let outerTitle = cleanText(titleNode?.textContent);
         let outerSubtitle = cleanText(subtitleNode?.textContent);
 
-        // "Yetenekler" tuzağını kır
         if (/yetenekler|skills/i.test(outerTitle)) return;
 
-        const nestedItems = Array.from(item.querySelectorAll('.pvs-list__outer-container .pvs-list > li, ul.pvs-list > li'));
+        const nestedList = item.querySelector('.pvs-list__outer-container .pvs-list, ul.pvs-list');
+        const nestedItems = nestedList ? Array.from(nestedList.children).filter(el => el.tagName.toLowerCase() === 'li') : [];
 
-        if (nestedItems.length > 0 && nestedItems[0].textContent.trim().length > 0) {
-            // ÇOKLU ROL (Aynı şirkette birden fazla pozisyon)
+        if (nestedItems.length > 0 && cleanText(nestedItems[0].textContent).length > 0) {
+            // ÇOKLU ROL
             nestedItems.forEach(nestedLi => {
-                const innerTitleNode = nestedLi.querySelector('.t-bold span[aria-hidden="true"]');
+                const innerTitleNode = nestedLi.querySelector('.t-bold span[aria-hidden="true"], .t-bold');
                 let innerTitle = cleanText(innerTitleNode?.textContent);
 
                 const innerDurNodes = Array.from(nestedLi.querySelectorAll('.t-normal span[aria-hidden="true"], .t-black--light span[aria-hidden="true"]'))
                     .map(el => cleanText(el.textContent));
 
-                // Alt öğe "Yetenekler" listesiyse atla
                 if (/yetenekler|skills/i.test(innerTitle)) return;
 
                 let innerDur = innerDurNodes.find(t => /\d{4}/.test(t) || /ay|yıl|yr|mo|halen|present|devam|mevcut/i.test(t)) || innerDurNodes[0] || "";
+
+                const descNode = nestedLi.querySelector('.inline-show-more-text span[aria-hidden="true"], .pv-shared-text-with-see-more span[aria-hidden="true"], div.t-14.t-normal span[aria-hidden="true"], .t-14.t-normal');
+                let desc = descNode ? cleanText(descNode.textContent).replace(/…daha fazla gör|…see more/gi, '') : "";
 
                 if (innerTitle) {
                     experiences.push({
                         company: outerTitle,
                         position: innerTitle,
                         duration: innerDur,
-                        description: "",
+                        description: desc,
                         isMultiRole: true
                     });
                 }
@@ -90,7 +91,6 @@ function getWorkExperience() {
             let finalPosition = outerTitle;
             let finalCompany = outerSubtitle;
 
-            // "Tam zamanlı" gibi kelimeler şirket ismine karışmışsa, onları temizle/yer değiştir
             const jobTypes = ["tam zamanlı", "yarı zamanlı", "stajyer", "full-time", "part-time", "intern", "freelance", "sözleşmeli"];
 
             if (finalCompany.includes("·")) {
@@ -100,12 +100,15 @@ function getWorkExperience() {
                 finalPosition = outerSubtitle;
             }
 
+            const descNode = item.querySelector('.inline-show-more-text span[aria-hidden="true"], .pv-shared-text-with-see-more span[aria-hidden="true"], div.t-14.t-normal span[aria-hidden="true"], .t-14.t-normal');
+            let desc = descNode ? cleanText(descNode.textContent).replace(/…daha fazla gör|…see more/gi, '') : "";
+
             if (finalPosition && !/yetenekler|skills/i.test(finalPosition)) {
                 experiences.push({
                     position: finalPosition || "",
                     company: finalCompany || "",
                     duration: duration,
-                    description: "",
+                    description: desc,
                     isMultiRole: false
                 });
             }
@@ -119,10 +122,13 @@ function getEducation() {
     const section = getSectionById("education") || getSectionByKeyword(/educat|eğitim/i);
     if (!section) return [];
 
-    const items = Array.from(section.querySelectorAll('li.artdeco-list__item, li.pvs-list__paged-list-item'));
+    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
+    if (!mainUl) return [];
+
+    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
     return items.map(item => {
-        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"]') || item.querySelector('.display-flex.align-items-center span[aria-hidden="true"]');
-        const subtitleNode = item.querySelector('.t-normal span[aria-hidden="true"]') || item.querySelector('span.t-14.t-normal span[aria-hidden="true"]');
+        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold') || item.querySelector('.display-flex.align-items-center span[aria-hidden="true"]');
+        const subtitleNode = item.querySelector('.t-normal span[aria-hidden="true"], .t-normal') || item.querySelector('span.t-14.t-normal span[aria-hidden="true"]');
         const dateNodes = Array.from(item.querySelectorAll('.t-black--light span[aria-hidden="true"], .pvs-entity__caption-wrapper[aria-hidden="true"]'))
             .map(el => cleanText(el.textContent));
 
@@ -140,27 +146,50 @@ function getSkills() {
     const section = getSectionById("skills") || getSectionByKeyword(/skill|yetenek/i);
     if (!section) return [];
 
-    const skills = Array.from(section.querySelectorAll('span[aria-hidden="true"]'))
+    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
+    if (mainUl) {
+        const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
+        const skills = items.map(item => {
+            const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold') || item.querySelector('span[aria-hidden="true"]');
+            return cleanText(titleNode?.textContent);
+        }).filter(t => t && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler"));
+
+        if (skills.length > 0) {
+            return [...new Set(skills)].map(name => ({ name }));
+        }
+    }
+
+    const fallbackSkills = Array.from(section.querySelectorAll('span[aria-hidden="true"]'))
         .map(el => cleanText(el.textContent))
         .filter(t => t && t.length < 50 && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler") && t !== "Yetenekler" && t !== "Skills");
 
-    return [...new Set(skills)].map(name => ({ name }));
+    return [...new Set(fallbackSkills)].map(name => ({ name }));
 }
 
 function getLanguages() {
     const section = getSectionById("languages") || getSectionByKeyword(/langu|diller/i);
     if (!section) return [];
 
-    const items = Array.from(section.querySelectorAll('li.artdeco-list__item, li.pvs-list__paged-list-item'));
-    return items.map(item => {
-        const lines = Array.from(item.querySelectorAll('span[aria-hidden="true"]'))
-            .map(el => cleanText(el.textContent))
-            .filter(t => t);
+    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
+    if (!mainUl) return [];
 
-        return {
-            name: lines[0] || "",
-            proficiency: lines[1] || ""
-        };
+    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
+    return items.map(item => {
+        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold');
+        const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"], .t-normal');
+
+        const name = cleanText(titleNode?.textContent);
+        const proficiency = cleanText(subtitleNode?.textContent);
+
+        if (name) {
+            return { name, proficiency };
+        } else {
+            const lines = Array.from(item.querySelectorAll('span[aria-hidden="true"]')).map(el => cleanText(el.textContent)).filter(t => t);
+            return {
+                name: lines[0] || "",
+                proficiency: lines[1] || ""
+            };
+        }
     }).filter(l => l.name);
 }
 
