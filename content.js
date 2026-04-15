@@ -12,7 +12,7 @@ async function autoScrollToLoad() {
 }
 
 function getSectionById(id) {
-    const div = document.querySelector(`div#${id}`);
+    const div = document.querySelector(`div#${id}, div#${id}_and_endorsements, div#${id}s`);
     if (div) return div.closest('section') || div.closest('.artdeco-card') || div.parentElement;
     return document.querySelector(`section#${id}`) || document.querySelector(`.artdeco-card#${id}`) || document.querySelector(`#${id}`);
 }
@@ -20,7 +20,7 @@ function getSectionById(id) {
 function getSectionByKeyword(keywordRegex) {
     const sections = Array.from(document.querySelectorAll("section, .artdeco-card, div[data-view-name='profile-card']"));
     for (let sec of sections) {
-        const header = sec.querySelector("h2, .pvs-header__title-container span[aria-hidden='true'], span.pvs-header__title, h3");
+        const header = sec.querySelector("div.pvs-header__title-container, h2, span.pvs-header__title, h3");
         if (header && keywordRegex.test((header.textContent || "").trim().toLowerCase())) {
             return sec;
         }
@@ -31,6 +31,30 @@ function getSectionByKeyword(keywordRegex) {
         }
     }
     return null;
+}
+
+function getAboutText() {
+    const section = getSectionById("about") || getSectionByKeyword(/^about|hakkında|hakkımda/i);
+    if (!section) return "";
+
+    const container = section.querySelector('.display-flex.ph5.pv3') || section.querySelector('.pv-shared-text-with-see-more') || section;
+    const spanNode = container.querySelector('span[aria-hidden="true"], .visually-hidden, .inline-show-more-text');
+
+    let text = "";
+    if (spanNode) {
+        text = cleanText(spanNode.textContent);
+    } else {
+        const fallbacks = Array.from(container.querySelectorAll('span[aria-hidden="true"]')).map(el => cleanText(el.textContent));
+        if (fallbacks.length > 1) {
+            text = fallbacks.slice(1).join(" ");
+        } else if (fallbacks.length === 1) {
+            text = fallbacks[0];
+        } else {
+            text = cleanText(container.textContent);
+        }
+    }
+
+    return text.replace(/…daha fazla gör|…see more|Hakkında|Hakkımda|About/gi, '').trim();
 }
 
 function getWorkExperience() {
@@ -143,25 +167,27 @@ function getEducation() {
 }
 
 function getSkills() {
-    const section = getSectionById("skills") || getSectionByKeyword(/skill|yetenek/i);
+    const section = getSectionById("skills") || getSectionById("skills_and_endorsements") || getSectionByKeyword(/skill|yetenek/i);
     if (!section) return [];
 
-    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
-    if (mainUl) {
-        const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
-        const skills = items.map(item => {
-            const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold') || item.querySelector('span[aria-hidden="true"]');
-            return cleanText(titleNode?.textContent);
-        }).filter(t => t && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler"));
+    const skills = [];
+    const itemNodes = section.querySelectorAll('a[data-field="skill_card_skill_topic"], li, .pvs-list__item--line-separated');
 
-        if (skills.length > 0) {
-            return [...new Set(skills)].map(name => ({ name }));
+    Array.from(itemNodes).forEach(node => {
+        const titleNode = node.querySelector('.t-bold span[aria-hidden="true"], .t-bold, span[aria-hidden="true"]');
+        let text = cleanText(titleNode?.textContent);
+        if (text && text.length < 50 && !text.includes("onay") && !text.includes("endorsement") && !text.includes("Yetkinlikler") && !/yetenekler|skills/i.test(text)) {
+            skills.push(text);
         }
+    });
+
+    if (skills.length > 0) {
+        return [...new Set(skills)].map(name => ({ name }));
     }
 
     const fallbackSkills = Array.from(section.querySelectorAll('span[aria-hidden="true"]'))
         .map(el => cleanText(el.textContent))
-        .filter(t => t && t.length < 50 && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler") && t !== "Yetenekler" && t !== "Skills");
+        .filter(t => t && t.length < 50 && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler") && !/yetenekler|skills/i.test(t));
 
     return [...new Set(fallbackSkills)].map(name => ({ name }));
 }
@@ -170,11 +196,10 @@ function getLanguages() {
     const section = getSectionById("languages") || getSectionByKeyword(/langu|diller/i);
     if (!section) return [];
 
-    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
-    if (!mainUl) return [];
+    const items = Array.from(section.querySelectorAll('li'));
+    if (items.length === 0) return [];
 
-    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
-    return items.map(item => {
+    const langs = items.map(item => {
         const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold');
         const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"], .t-normal');
 
@@ -191,6 +216,16 @@ function getLanguages() {
             };
         }
     }).filter(l => l.name);
+
+    const uniqueLangs = [];
+    const seen = new Set();
+    for (const l of langs) {
+        if (!seen.has(l.name)) {
+            seen.add(l.name);
+            uniqueLangs.push(l);
+        }
+    }
+    return uniqueLangs;
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -227,7 +262,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             const profileData = {
                 extractedAt: new Date().toISOString(),
                 profileUrl: window.location.href.split('?')[0],
-                basics: { name, summary: headline, location: locText, image },
+                basics: { name, summary: getAboutText() || headline, location: locText, image },
                 experience: getWorkExperience(),
                 education: getEducation(),
                 skills: getSkills(),
