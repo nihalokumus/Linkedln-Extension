@@ -21,8 +21,12 @@ function getSectionByKeyword(keywordRegex) {
     const sections = Array.from(document.querySelectorAll("section, .artdeco-card, div[data-view-name='profile-card']"));
     for (let sec of sections) {
         const header = sec.querySelector("div.pvs-header__title-container, h2, span.pvs-header__title, h3");
-        if (header && keywordRegex.test((header.textContent || "").trim().toLowerCase())) {
-            return sec;
+        if (header) {
+            let text = (header.innerText || header.textContent || "").trim().toLowerCase();
+            text = text.split('\n')[0].trim();
+            if (keywordRegex.test(text)) {
+                return sec;
+            }
         }
     }
     for (let sec of sections) {
@@ -34,27 +38,21 @@ function getSectionByKeyword(keywordRegex) {
 }
 
 function getAboutText() {
-    const section = getSectionById("about") || getSectionByKeyword(/^about|hakkında|hakkımda/i);
+    const section = getSectionById("about") || getSectionByKeyword(/^about|^hakkında|^hakkımda/i);
     if (!section) return "";
 
-    const container = section.querySelector('.display-flex.ph5.pv3') || section.querySelector('.pv-shared-text-with-see-more') || section;
-    const spanNode = container.querySelector('span[aria-hidden="true"], .visually-hidden, .inline-show-more-text');
 
-    let text = "";
-    if (spanNode) {
-        text = cleanText(spanNode.textContent);
-    } else {
-        const fallbacks = Array.from(container.querySelectorAll('span[aria-hidden="true"]')).map(el => cleanText(el.textContent));
-        if (fallbacks.length > 1) {
-            text = fallbacks.slice(1).join(" ");
-        } else if (fallbacks.length === 1) {
-            text = fallbacks[0];
-        } else {
-            text = cleanText(container.textContent);
-        }
+    const textSpan = section.querySelector('div.inline-show-more-text span[aria-hidden="true"], .pv-shared-text-with-see-more span[aria-hidden="true"]');
+
+    if (textSpan) {
+        return cleanText(textSpan.textContent);
     }
 
-    return text.replace(/…daha fazla gör|…see more|Hakkında|Hakkımda|About/gi, '').trim();
+
+    let text = section.innerText || section.textContent || "";
+    let cleaned = text.split('\n').filter(line => !/^(hakkında|hakkımda|about)$/i.test(line.trim())).join(' ');
+
+    return cleanText(cleaned.replace(/…daha fazla gör|…see more/gi, ''));
 }
 
 function getWorkExperience() {
@@ -109,7 +107,7 @@ function getWorkExperience() {
                 }
             });
         } else {
-            // TEKLİ ROL
+
             let duration = dateNodes.find(t => /\d{4}/.test(t) || /ay|yıl|yr|mo|halen|present|devam|mevcut/i.test(t)) || "";
 
             let finalPosition = outerTitle;
@@ -167,55 +165,73 @@ function getEducation() {
 }
 
 function getSkills() {
-    const section = getSectionById("skills") || getSectionById("skills_and_endorsements") || getSectionByKeyword(/skill|yetenek/i);
+    const section = getSectionById("skills") || getSectionById("skills_and_endorsements") || getSectionByKeyword(/^skill|^yetenek/i);
     if (!section) return [];
 
-    const skills = [];
-    const itemNodes = section.querySelectorAll('a[data-field="skill_card_skill_topic"], li, .pvs-list__item--line-separated');
+    let skills = [];
 
-    Array.from(itemNodes).forEach(node => {
-        const titleNode = node.querySelector('.t-bold span[aria-hidden="true"], .t-bold, span[aria-hidden="true"]');
-        let text = cleanText(titleNode?.textContent);
-        if (text && text.length < 50 && !text.includes("onay") && !text.includes("endorsement") && !text.includes("Yetkinlikler") && !/yetenekler|skills/i.test(text)) {
-            skills.push(text);
-        }
-    });
 
-    if (skills.length > 0) {
-        return [...new Set(skills)].map(name => ({ name }));
+    const listItems = section.querySelectorAll('ul.pvs-list > li');
+
+    if (listItems.length > 0) {
+        listItems.forEach(item => {
+
+            const nameNode = item.querySelector('.hoverable-link-text span[aria-hidden="true"], .mr1 span[aria-hidden="true"], .t-bold span[aria-hidden="true"]');
+            if (nameNode) {
+                skills.push(cleanText(nameNode.textContent));
+            }
+        });
+    } else {
+
+        const fallbackItems = section.querySelectorAll('.pv-skill-category-entity__name-text, .t-bold');
+        fallbackItems.forEach(item => {
+            const text = cleanText(item.textContent);
+            if (text) skills.push(text);
+        });
     }
 
-    const fallbackSkills = Array.from(section.querySelectorAll('span[aria-hidden="true"]'))
-        .map(el => cleanText(el.textContent))
-        .filter(t => t && t.length < 50 && !t.includes("onay") && !t.includes("endorsement") && !t.includes("Yetkinlikler") && !/yetenekler|skills/i.test(t));
+    // Daha fazla gör metinlerini silme/filtreleme
+    skills = skills.filter(t => t && t.length > 1 && t.length < 50 && !/yetenek|skill|onay|endorsement|gör|see more/i.test(t));
 
-    return [...new Set(fallbackSkills)].map(name => ({ name }));
+
+    return [...new Set(skills)].map(name => ({ name: name.replace(/…daha fazla gör|…see more/gi, '').trim() }));
 }
 
 function getLanguages() {
-    const section = getSectionById("languages") || getSectionByKeyword(/langu|diller/i);
+    const section = getSectionById("languages") || getSectionByKeyword(/^langu|^diller/i);
     if (!section) return [];
 
-    const items = Array.from(section.querySelectorAll('li'));
-    if (items.length === 0) return [];
+    const langs = [];
+    const listItems = section.querySelectorAll('ul.pvs-list > li');
 
-    const langs = items.map(item => {
-        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold');
-        const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"], .t-normal');
+    if (listItems.length > 0) {
+        listItems.forEach(item => {
 
-        const name = cleanText(titleNode?.textContent);
-        const proficiency = cleanText(subtitleNode?.textContent);
+            const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .mr1 span[aria-hidden="true"]');
 
-        if (name) {
-            return { name, proficiency };
-        } else {
-            const lines = Array.from(item.querySelectorAll('span[aria-hidden="true"]')).map(el => cleanText(el.textContent)).filter(t => t);
-            return {
-                name: lines[0] || "",
-                proficiency: lines[1] || ""
-            };
-        }
-    }).filter(l => l.name);
+            const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"]');
+
+            if (titleNode) {
+                langs.push({
+                    name: cleanText(titleNode.textContent),
+                    proficiency: subtitleNode ? cleanText(subtitleNode.textContent) : ""
+                });
+            }
+        });
+    } else {
+
+        const items = Array.from(section.querySelectorAll('li'));
+        items.forEach(item => {
+            let lines = Array.from(item.querySelectorAll('span[aria-hidden="true"]')).map(s => cleanText(s.textContent)).filter(t => t);
+            if (lines.length > 0 && !/diller|languages/i.test(lines[0])) {
+                langs.push({
+                    name: lines[0],
+                    proficiency: lines.length > 1 ? lines[1] : ""
+                });
+            }
+        });
+    }
+
 
     const uniqueLangs = [];
     const seen = new Set();
@@ -227,7 +243,6 @@ function getLanguages() {
     }
     return uniqueLangs;
 }
-
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type !== "EXPORT_JSON" && msg?.type !== "GET_DATA") return;
 

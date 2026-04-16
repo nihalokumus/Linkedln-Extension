@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const exportBtn = document.getElementById('exportBtn');
   const saveDbBtn = document.getElementById('saveDbBtn');
 
-  // Sayfa yüklendiğinde token kontrolü yap
+
   chrome.storage.local.get(['accessToken', 'refreshToken'], (result) => {
     if (result.accessToken) {
       loginView.classList.add('hidden');
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
       statusEl.textContent = "Veritabanına kaydediliyor...";
       const profileData = res.data;
 
-      // KESİN VE SAĞLAM TARİH FORMATLAYICI
+
       const formatDate = (dateStr) => {
         if (!dateStr) return "";
         dateStr = dateStr.trim().toLowerCase();
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
           'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
         };
 
-        // Türkçe karakterli Regex ile "Eylül 2022" gibi formatları yakala
+
         const match = dateStr.match(/([a-zçğıöşü]+)\s+(\d{4})/i);
         if (match) {
           const monthText = match[1].substring(0, 3);
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function () {
           return `${year}-${month}-01`;
         }
 
-        // Sadece "2023" gibi bir yıl varsa yakala
+
         const yearMatch = dateStr.match(/(\d{4})/);
         if (yearMatch) {
           return `${yearMatch[1]}-01-01`;
