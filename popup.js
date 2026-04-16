@@ -189,29 +189,35 @@ document.addEventListener('DOMContentLoaded', function () {
         if (handle) generatedEmail = `${handle}@linkedin.local`;
       }
 
+      const removeEmojis = (str) => {
+        return (str || "").replace(/[^\p{L}\p{N}\p{P}\p{Z}\n\r+]/gu, '');
+      };
+
       const payload = {
         override: true,
         basics: {
           email: generatedEmail,
-          name: profileData.basics.name || "",
-          summary: profileData.basics.summary || "",
+          name: removeEmojis(profileData.basics.name).substring(0, 100) || "",
+          summary: removeEmojis(profileData.basics.summary) || "",
           image: profileData.basics.image || "",
           profiles: [{ url: profileData.profileUrl || "" }],
-          location: { address: profileData.basics.location || "", city: "", country: "" }
+          location: { address: removeEmojis(profileData.basics.location) || "", city: "", country: "" }
         },
         skills: profileData.skills || [],
         languages: (profileData.languages || []).map(l => ({
-          language: l.name || "",
-          fluency: l.proficiency || ""
+          language: removeEmojis(l.name) || "",
+          fluency: removeEmojis(l.proficiency) || ""
         })),
         education: (profileData.education || []).map(e => {
           const edDateParts = e.duration ? e.duration.split(/[-–—]/) : [];
+          let edSd = formatDate(edDateParts[0] ? edDateParts[0].trim() : "");
+          let edEd = formatDate(edDateParts[1] ? edDateParts[1].replace(/·.*/, '').trim() : "");
           return {
-            institution: e.institution || "",
-            area: e.degree || "",
-            studyType: e.degree || "",
-            startDate: formatDate(edDateParts[0] ? edDateParts[0].trim() : ""),
-            endDate: formatDate(edDateParts[1] ? edDateParts[1].replace(/·.*/, '').trim() : ""),
+            institution: removeEmojis(e.institution) || "",
+            area: removeEmojis(e.degree) || "",
+            studyType: removeEmojis(e.degree) || "",
+            startDate: edSd ? edSd : "1901-01-01",
+            endDate: edEd ? edEd : null,
             score: ""
           };
         }),
@@ -220,15 +226,15 @@ document.addEventListener('DOMContentLoaded', function () {
           let sd = formatDate(dateParts[0] ? dateParts[0].trim() : "");
           let ed = formatDate(dateParts[1] ? dateParts[1].replace(/·.*/, '').trim() : "");
 
-          let companyClean = (w.company || "").split('·')[0].trim();
-          let positionClean = (w.position || "").split('·')[0].trim();
+          let companyClean = removeEmojis((w.company || "").split('·')[0].trim());
+          let positionClean = removeEmojis((w.position || "").split('·')[0].trim());
 
           return {
             name: companyClean,
             position: positionClean,
             startDate: sd ? sd : "1901-01-01",
-            endDate: ed,
-            summary: w.description || ""
+            endDate: ed ? ed : null,
+            summary: removeEmojis(w.description) || ""
           };
         })
       };

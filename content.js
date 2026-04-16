@@ -1,5 +1,17 @@
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const cleanText = (s) => (s || "").trim().replace(/\s+/g, " ");
+const cleanText = (s) => {
+    if (!s) return "";
+    let cleaned = s.trim().replace(/\s+/g, " ");
+    // Remove typical premium badges or tags
+    cleaned = cleaned.replace(/LinkedIn Premium/gi, '')
+        .replace(/Premium üyesi/gi, '')
+        .replace(/Premium member/gi, '')
+        .replace(/Top Voice/gi, '')
+        .replace(/Verify/gi, '')
+        .replace(/Onaylı/gi, '')
+        .replace(/…daha fazla gör|…see more/gi, '');
+    return cleaned.trim();
+};
 
 async function autoScrollToLoad() {
     const total = document.body.scrollHeight;
@@ -18,17 +30,17 @@ function getSectionById(id) {
 }
 
 function getSectionByKeyword(keywordRegex) {
-    const sections = Array.from(document.querySelectorAll("section, .artdeco-card, div[data-view-name='profile-card']"));
-    for (let sec of sections) {
-        const header = sec.querySelector("div.pvs-header__title-container, h2, span.pvs-header__title, h3");
-        if (header) {
-            let text = (header.innerText || header.textContent || "").trim().toLowerCase();
-            text = text.split('\n')[0].trim();
-            if (keywordRegex.test(text)) {
-                return sec;
-            }
+    const headers = Array.from(document.querySelectorAll("h2, h3, span.pvs-header__title, .pvs-header__title, div.pvs-header__title-container span"));
+    for (let header of headers) {
+        let text = (header.innerText || header.textContent || "").trim().toLowerCase();
+        text = text.split('\n')[0].trim();
+        if (keywordRegex.test(text)) {
+            let sec = header.closest('section') || header.closest('.artdeco-card') || header.closest('.pvs-list__container') || header.closest('div[data-view-name="profile-card"]');
+            if (sec) return sec;
         }
     }
+
+    const sections = Array.from(document.querySelectorAll("section, .artdeco-card, div[data-view-name='profile-card']"));
     for (let sec of sections) {
         if (sec.id && keywordRegex.test(sec.id.toLowerCase())) {
             return sec;
@@ -59,17 +71,17 @@ function getWorkExperience() {
     const section = getSectionById("experience") || getSectionByKeyword(/exper|deneyi/i);
     if (!section) return [];
 
-    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
+    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul') || section.querySelector('.pvs-list');
     if (!mainUl) return [];
 
-    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
+    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li' || el.classList.contains('pvs-list__item--line-separated'));
     const experiences = [];
 
     items.forEach(item => {
-        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold');
+        const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold, .display-flex.align-items-center span[aria-hidden="true"]');
         const subtitleNode = item.querySelector('.t-normal:not(.t-black--light) span[aria-hidden="true"], .t-normal span[aria-hidden="true"], .t-normal');
 
-        const dateNodes = Array.from(item.querySelectorAll('.t-black--light span[aria-hidden="true"], .pvs-entity__caption-wrapper[aria-hidden="true"]'))
+        const dateNodes = Array.from(item.querySelectorAll('.t-black--light span[aria-hidden="true"], .pvs-entity__caption-wrapper[aria-hidden="true"], .t-black--light'))
             .map(el => cleanText(el.textContent));
 
         let outerTitle = cleanText(titleNode?.textContent);
@@ -144,14 +156,14 @@ function getEducation() {
     const section = getSectionById("education") || getSectionByKeyword(/educat|eğitim/i);
     if (!section) return [];
 
-    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul');
+    const mainUl = section.querySelector('ul.pvs-list') || section.querySelector('ul') || section.querySelector('.pvs-list');
     if (!mainUl) return [];
 
-    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li');
+    const items = Array.from(mainUl.children).filter(el => el.tagName.toLowerCase() === 'li' || el.classList.contains('pvs-list__item--line-separated'));
     return items.map(item => {
         const titleNode = item.querySelector('.t-bold span[aria-hidden="true"], .t-bold') || item.querySelector('.display-flex.align-items-center span[aria-hidden="true"]');
         const subtitleNode = item.querySelector('.t-normal span[aria-hidden="true"], .t-normal') || item.querySelector('span.t-14.t-normal span[aria-hidden="true"]');
-        const dateNodes = Array.from(item.querySelectorAll('.t-black--light span[aria-hidden="true"], .pvs-entity__caption-wrapper[aria-hidden="true"]'))
+        const dateNodes = Array.from(item.querySelectorAll('.t-black--light span[aria-hidden="true"], .pvs-entity__caption-wrapper[aria-hidden="true"], .t-black--light'))
             .map(el => cleanText(el.textContent));
 
         let duration = dateNodes.find(t => /\d{4}/.test(t) || /mevcut|halen|present|devam/i.test(t)) || "";
@@ -267,6 +279,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 || mainRegion.querySelector(".text-body-small.inline");
             const locText = cleanText(locEl?.textContent) || "";
 
+            let profileUrlClean = window.location.href.split('?')[0];
+            if (profileUrlClean.endsWith('/')) profileUrlClean = profileUrlClean.slice(0, -1);
+
             const imageEl = mainRegion.querySelector('img.pv-top-card-profile-picture__image')
                 || mainRegion.querySelector(`img.evi-image[alt*="${name}"]`)
                 || mainRegion.querySelector('img.evi-image')
@@ -276,7 +291,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
             const profileData = {
                 extractedAt: new Date().toISOString(),
-                profileUrl: window.location.href.split('?')[0],
+                profileUrl: profileUrlClean,
                 basics: { name, summary: getAboutText() || headline, location: locText, image },
                 experience: getWorkExperience(),
                 education: getEducation(),
